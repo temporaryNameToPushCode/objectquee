@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7d31bab6-c9f9-4d28-aaff-abf85f26a51a" >
+		<http:listener-connection host="localhost" port="8081" />
+	</http:listener-config>
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="480e6956-2f1b-41e1-a51a-692e033d9ff2" entryTtl="120" />
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="0703e5a9-8b15-435f-8502-1ae3c2c6ae15" >
+		<http:request-connection host="localhost" port="8081" />
+	</http:request-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="0d2ecd06-1fb0-47f4-8cba-70a09e04aca9">
+		<vm:queues >
+			<vm:queue queueName="VM1" />
+		</vm:queues>
+	</vm:config>
+	<flow name="testFlow" doc:id="c717590d-3007-4080-a012-d567f559c31b" >
+		<http:listener doc:name="Listener" doc:id="e93d11f4-3ee6-4d51-aaf1-160282951c78" config-ref="HTTP_Listener_config" path="/test"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="7fc5c668-e47a-4295-a4cf-fa56fc66bcc7" variableName="input"/>
+		<set-variable value="#[attributes.queryParams.accessToken]" doc:name="Set Variable" doc:id="11e4e5de-ad9f-44ff-8c42-5e740b499622" variableName="key"/>
+		<os:contains doc:name="Contains" doc:id="edaa1b3d-a5f0-4331-bf7b-13fa464ebc55" key="#[vars.key]" objectStore="Object_store"/>
+		<choice doc:name="Choice" doc:id="d3b32e0a-1f0f-48dc-b1f1-e5ba0574b8f6" >
+			<when expression="#[payload == true]">
+				<ee:transform doc:name="Transform Message" doc:id="9b16390a-174e-4136-8cd1-592606c8c9e5" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<os:store doc:name="Store" doc:id="3dc05a88-8193-4eef-9d5f-cec9ae3d428a" key="#[vars.key]" objectStore="Object_store">
+					<os:value ><![CDATA[#[vars."input"]]]></os:value>
+				</os:store>
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="e3c50d0a-303f-4ec5-8a01-2ce326328dc0">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if (payload==true) "data already exists" else "data stored in object Store"]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="testFlow1" doc:id="27ae8d95-212f-441b-a532-e9c2b337aea4" >
+		<http:listener doc:name="Listener" doc:id="8587726a-1ac1-4aa9-a140-bbc01b181e12" config-ref="HTTP_Listener_config" path="/get"/>
+		<os:retrieve doc:name="Retrieve" doc:id="c8ed7bec-94ba-4f7b-b175-527344dc7d60" key="#[attributes.queryParams.accessToken]" objectStore="Object_store">
+			<os:default-value ><![CDATA[data not available]]></os:default-value>
+		</os:retrieve>
+		<ee:transform doc:name="Transform Message" doc:id="44e2fbd7-9e6c-4623-a97b-1256d5084b74" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="VMCONNECTOR" doc:id="275d73d8-e886-4e45-b1e5-0153d67047ee" >
+		<http:listener doc:name="Listener" doc:id="e33cc71c-2984-45c5-a7e3-b64bad492eb4" config-ref="HTTP_Listener_config" path="/VM1"/>
+		<logger level="INFO" doc:name='"Before PUBLISH :::: " ' doc:id="8016e5c9-c2c1-426a-88ec-678f6d8d947d" message='#["Before PUBLISH :::: " ++ payload]'/>
+		<vm:publish queueName="VM1" doc:name="Publish" doc:id="fb31b060-963d-4253-b001-2037e0d3f524" config-ref="VM_Config" sendCorrelationId="AUTO" timeout="50"/>
+		<logger level="INFO" doc:name='"After PUBLISH :::: "' doc:id="4c9fc3e7-6875-4f26-8ea5-81fcd1b95df8" message='#["After PUBLISH :::: " ++ payload]'/>
+	</flow>
+	<flow name="testFlow4" doc:id="fb2a7a5d-7acb-4826-a585-0f07cbf14cc0" >
+		<vm:listener queueName="VM1" doc:name="Listener" doc:id="7e16ddb5-d2bc-4101-8926-c7086842304e" config-ref="VM_Config" timeout="50"/>
+		<logger level="INFO" doc:name='"Before LISTNER :::: " ' doc:id="ee61370f-5967-4935-bba1-e0b4d74452f5" message='#["Before LISTNER :::: " ++ payload]'/>
+		<set-payload value="#[payload + 1]" doc:name="payload + 1" doc:id="8dc724c9-2c9a-43d2-a72f-48e74821af32" />
+		<logger level="INFO" doc:name='"After LISTNER :::: "' doc:id="cea1714b-9846-44b8-a01c-951fa309920a" message='#["After LISTNER :::: " ++ payload]'/>
+	</flow>
+</mule>

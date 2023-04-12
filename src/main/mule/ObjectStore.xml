@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="ObjectStoreFlow" doc:id="2dea5dc6-ee0c-4ccf-9b6d-7359a6c4f56c" >
+		<http:listener doc:name="Listener" doc:id="62e242e7-49fb-4d91-9892-38058d07da73" config-ref="HTTP_Listener_config" path="/os"/>
+		<set-variable value="#[attributes.queryParams.city]" doc:name="Set Variable" doc:id="aec1e999-4d28-430f-af2b-10b62b2eba7d" variableName="City"/>
+		<set-variable value="#[attributes.queryParams.cityValue]" doc:name="Set Variable" doc:id="77ff996c-b862-4fc9-8f05-17cd6b72d969" variableName="cityName"/>
+		<os:store doc:name="Store" doc:id="46053f31-a95a-454a-8479-303158760f61" key="#[vars.City]" objectStore="Object_store">
+			<os:value ><![CDATA[#[vars.cityName]]]></os:value>
+		</os:store>
+		<set-payload value='#["Object Store w3as created succesfully"]' doc:name="Set Payload" doc:id="306e52e2-7de6-4fdf-9f0b-526c221b3e81" />
+	</flow>
+	<flow name="ObjectStoreFlow1" doc:id="3cb832de-e71e-45e8-b251-09c20f46496b" >
+		<http:listener doc:name="Listener" doc:id="dc80efc3-200b-4499-bd52-6b1e861f4072" config-ref="HTTP_Listener_config" path="/os1"/>
+		<os:retrieve-all doc:name="Retrieve all" doc:id="9fba2336-19e9-4681-a141-6b25477bd804" objectStore="Object_store"/>
+	</flow>
+	<flow name="ObjectStoreFlow2" doc:id="acc82c74-8d15-4391-a1a6-832450a4e66e" >
+		<http:listener doc:name="Listener" doc:id="cbd3321c-579b-473b-aeb1-1a2bf6ec8763" config-ref="HTTP_Listener_config" path="os2"/>
+		<os:retrieve-all-keys doc:name="Retrieve all keys" doc:id="49deae8f-8961-436a-af1f-1c6cc95ad311" objectStore="Object_store"/>
+	</flow>
+	<flow name="ObjectStoreFlow3" doc:id="bca7fba5-c25e-40bc-aa6b-3cce3bf21b2d" >
+		<http:listener doc:name="Listener" doc:id="531a9c74-8865-49ff-97e6-0a00ef45bddd" config-ref="HTTP_Listener_config" path="/os3"/>
+		<set-variable value="#[attributes.queryParams.city]" doc:name="Set Variable" doc:id="5ad7e3a0-6f0b-4660-957b-5f3c6bded6a1" variableName="key"/>
+		<os:retrieve doc:name="Retrieve" doc:id="3ed94380-037c-48c2-b42d-e753854bba9f" key="#[vars.key]" objectStore="Object_store">
+			<os:default-value ><![CDATA[key is not correct please check]]></os:default-value>
+		</os:retrieve>
+	</flow>
+	<flow name="ObjectStoreFlow4" doc:id="6def8acb-981e-430e-88c6-66b113f1c5e4" >
+		<http:listener doc:name="Listener" doc:id="df5b33fe-2857-46bb-bc29-d5a7188bf238" config-ref="HTTP_Listener_config" path="/os6"/>
+		<set-variable value="#[attributes.queryParams.city]" doc:name="Set Variable" doc:id="0ab64751-6cea-4f47-8324-77ba81bfe184" variableName="key"/>
+		<os:contains doc:name="Contains" doc:id="2e70a3e3-be31-47a9-a9b3-71dfe5412174" key="#[vars.key]" objectStore="Object_store"/>
+		<choice doc:name="Choice" doc:id="e4b5d7b6-1173-432c-a02c-78644fff6919" >
+			<when expression="#[payload == true]">
+				<os:retrieve doc:name="Retrieve" doc:id="8565b854-68d2-4d87-bb44-bc340a4161e0" key="#[vars.key]" objectStore="Object_store">
+					<os:default-value ><![CDATA[something is wrong please check]]></os:default-value>
+				</os:retrieve>
+				<logger level="INFO" doc:name="Logger" doc:id="37d61639-8115-4c4a-8586-87201449aad8" message="#[payload]"/>
+				<os:remove doc:name="Remove" doc:id="49ee1df7-6e4b-49a9-a396-052dbd89a070" key="#[vars.key]" objectStore="Object_store" />
+				<logger level="INFO" doc:name="Logger" doc:id="17746404-c915-4149-8661-35a01c5c056b" message="#[payload]"/>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="6787b02f-fb5f-460d-956a-75fa97422a8d" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"data not found with that key"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
